@@ -1,0 +1,41 @@
+<view class="page">
+  <view class="hero card-shadow">
+    <view class="hero-top">
+      <view>
+        <view class="eyebrow">Vitex Community</view>
+        <view class="title">发现值得收藏的想法</view>
+        <view class="subtitle">邮箱账号体系 · 管理员审核后公开展示</view>
+      </view>
+      <button wx:if="{{!user}}" class="login-btn" bindtap="handleLogin">登录</button>
+      <button wx:else class="login-btn" bindtap="createPost">发文</button>
+    </view>
+    <view class="search-bar">
+      <text class="search-icon">⌕</text>
+      <input class="search-input" value="{{keyword}}" bindinput="onSearchInput" placeholder="搜索标题、摘要或标签" />
+    </view>
+  </view>
+
+  <view class="mode-nav">
+    <button class="mode-card {{sortMode === 'latest' ? 'mode-active' : 'mode-idle'}}" data-mode="latest" bindtap="switchSort"><text>最新文章</text><text>按发布时间浏览</text></button>
+    <button class="mode-card {{sortMode === 'hot' ? 'mode-active' : 'mode-idle'}}" data-mode="hot" bindtap="switchSort"><text>最热文章</text><text>浏览 + 收藏 + 评论</text></button>
+  </view>
+
+  <view class="section-header">
+    <view class="section-title">{{sortMode === 'hot' ? '最热文章' : '最新文章'}}</view>
+    <view class="section-subtitle">{{visibleCount}} 篇已发布内容</view>
+  </view>
+
+  <view class="status" wx:if="{{loading}}">文章加载中...</view>
+  <view class="status error" wx:elif="{{error}}"><view>{{error}}</view><button class="retry" bindtap="loadPosts">重试</button></view>
+  <view wx:else class="feed">
+    <view wx:for="{{posts}}" wx:key="id" class="post-card card-shadow" data-id="{{item.id}}" bindtap="openPost">
+      <view class="card-meta"><text>{{item.categoryName}}</text><text>{{item.viewCount}} 浏览</text></view>
+      <view class="card-title">{{item.title}}</view>
+      <view class="card-excerpt">{{item.excerpt}}</view>
+      <view class="card-footer"><text>@{{item.authorName}}</text><text wx:for="{{item.tags}}" wx:for-item="tag" wx:key="*this" class="tag">#{{tag}}</text></view>
+    </view>
+    <view wx:if="{{posts.length === 0}}" class="empty"><view class="empty-icon">∅</view><view>{{keyword ? '没有匹配的文章' : '暂无已发布文章'}}</view><text>{{keyword ? '清空关键词后会恢复默认列表。' : '去发布第一篇内容，等待管理员审核通过。'}}</text></view>
+    <view wx:elif="{{hasMore}}" class="load-more">继续下滑加载更多</view>
+    <view wx:else class="load-more">已显示全部</view>
+  </view>
+</view>

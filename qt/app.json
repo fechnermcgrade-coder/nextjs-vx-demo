@@ -1,0 +1,57 @@
+{
+  "pages": [
+    "pages/index/index",
+    "pages/login/index",
+    "pages/post/detail",
+    "pages/post/create/index",
+    "pages/post/edit/index",
+    "pages/profile/index",
+    "pages/profile/edit/index",
+    "pages/messages/index",
+    "pages/messages/chat",
+    "pages/notifications/index",
+    "pages/logs/logs"
+  ],
+  "window": {
+    "navigationBarTextStyle": "black",
+    "navigationBarTitleText": "Vitex 社区",
+    "navigationBarBackgroundColor": "#F6F3EC",
+    "backgroundColor": "#F6F3EC"
+  },
+  "tabBar": {
+    "color": "#789195",
+    "selectedColor": "#2F5D62",
+    "backgroundColor": "#FBFAF6",
+    "borderStyle": "white",
+    "list": [
+      {
+        "pagePath": "pages/index/index",
+        "text": "首页",
+        "iconPath": "assets/tabbar/home-normal.png",
+        "selectedIconPath": "assets/tabbar/home-active.png"
+      },
+      {
+        "pagePath": "pages/post/create/index",
+        "text": "发文",
+        "iconPath": "assets/tabbar/compose-normal.png",
+        "selectedIconPath": "assets/tabbar/compose-active.png"
+      },
+      {
+        "pagePath": "pages/messages/index",
+        "text": "消息",
+        "iconPath": "assets/tabbar/messages-normal.png",
+        "selectedIconPath": "assets/tabbar/messages-active.png"
+      },
+      {
+        "pagePath": "pages/profile/index",
+        "text": "我的",
+        "iconPath": "assets/tabbar/profile-normal.png",
+        "selectedIconPath": "assets/tabbar/profile-active.png"
+      }
+    ]
+  },
+  "style": "v2",
+  "componentFramework": "glass-easel",
+  "sitemapLocation": "sitemap.json",
+  "lazyCodeLoading": "requiredComponents"
+}

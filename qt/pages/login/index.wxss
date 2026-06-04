@@ -1,0 +1,103 @@
+.login-page {
+  min-height: 100vh;
+  padding: 72rpx 36rpx 40rpx;
+  box-sizing: border-box;
+  background: linear-gradient(160deg, #1f2933 0%, #2f5d62 56%, #c9a66b 100%);
+}
+
+.hero {
+  color: #fff;
+  text-align: center;
+}
+
+.logo {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 128rpx;
+  height: 128rpx;
+  margin: 0 auto 28rpx;
+  border-radius: 40rpx;
+  background: rgba(255, 255, 255, 0.18);
+  font-size: 64rpx;
+  font-weight: 900;
+}
+
+.title {
+  font-size: 52rpx;
+  font-weight: 900;
+}
+
+.subtitle {
+  margin-top: 14rpx;
+  font-size: 27rpx;
+  opacity: 0.86;
+}
+
+.auth-card {
+  margin-top: 56rpx;
+  padding: 38rpx;
+  border-radius: 40rpx;
+  background: #fff;
+}
+
+.tabs {
+  display: grid;
+  grid-template-columns: repeat(2, 1fr);
+  gap: 12rpx;
+  padding: 8rpx;
+  border-radius: 999rpx;
+  background: #fdf0e9;
+}
+
+.tab {
+  height: 72rpx;
+  border-radius: 999rpx;
+  color: #9a5543;
+  font-size: 28rpx;
+  font-weight: 900;
+  line-height: 72rpx;
+  text-align: center;
+}
+
+.tab.active {
+  background: #2f5d62;
+  color: #fff;
+}
+
+.label {
+  margin-top: 28rpx;
+  color: #1f2933;
+  font-size: 26rpx;
+  font-weight: 900;
+}
+
+.input {
+  width: 100%;
+  height: 90rpx;
+  margin-top: 12rpx;
+  padding: 0 24rpx;
+  border-radius: 24rpx;
+  box-sizing: border-box;
+  background: #f8f3ef;
+  color: #1f2933;
+  font-size: 28rpx;
+}
+
+.submit {
+  height: 92rpx;
+  margin-top: 36rpx;
+  border-radius: 999rpx;
+  background: linear-gradient(135deg, #2f5d62, #4f7f84);
+  color: #fff;
+  font-size: 31rpx;
+  font-weight: 900;
+}
+
+.tip {
+  margin-top: 24rpx;
+  color: #9a5543;
+  font-size: 24rpx;
+  line-height: 1.7;
+  text-align: center;
+}

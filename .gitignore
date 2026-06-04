@@ -1,0 +1,5 @@
+ht/.npm-cache/
+ht/.next/
+ht/node_modules/
+ht/.env*.local
+ht/*.log

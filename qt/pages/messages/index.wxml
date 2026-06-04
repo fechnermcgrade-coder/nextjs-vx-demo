@@ -1,0 +1,38 @@
+<view class="page">
+  <view class="header">
+    <view class="title">消息</view>
+    <view class="subtitle">查看和其他用户的会话</view>
+  </view>
+
+  <view class="ai-card card-shadow">
+    <view class="ai-head">
+      <view>
+        <view class="ai-title">AI 助手</view>
+        <view class="ai-subtitle">检索社区内容，帮你整理回复和想法</view>
+      </view>
+    </view>
+    <scroll-view class="ai-messages" scroll-y>
+      <view wx:for="{{aiMessages}}" wx:key="createdAt" class="ai-row {{item.role}}">
+        <view class="ai-bubble">{{item.content}}</view>
+      </view>
+      <view wx:if="{{aiSending}}" class="ai-loading">AI 正在回复...</view>
+    </scroll-view>
+    <view class="ai-composer">
+      <input class="ai-input" value="{{aiInput}}" bindinput="onAiInput" placeholder="问问文章、收藏、历史或回复措辞" confirm-type="send" bindconfirm="sendAi" />
+      <button class="ai-send" loading="{{aiSending}}" disabled="{{aiSending}}" bindtap="sendAi">发送</button>
+    </view>
+  </view>
+
+  <view class="section-title">会话列表</view>
+  <view wx:if="{{loading}}" class="empty">消息加载中...</view>
+  <view wx:elif="{{threads.length === 0}}" class="empty">暂无会话</view>
+  <view wx:else class="list">
+    <view wx:for="{{threads}}" wx:key="peerId" class="thread" data-id="{{item.peerId}}" data-name="{{item.peerName}}" bindtap="openChat">
+      <view class="thread-main">
+        <view class="thread-name">{{item.peerName}}</view>
+        <view class="thread-last">{{item.lastMessage}}</view>
+      </view>
+      <view wx:if="{{item.unreadCount}}" class="badge">{{item.unreadCount}}</view>
+    </view>
+  </view>
+</view>

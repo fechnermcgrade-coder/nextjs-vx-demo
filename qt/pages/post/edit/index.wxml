@@ -1,0 +1,48 @@
+<view class="page">
+  <view wx:if="{{needLogin}}" class="login-guard card-shadow">
+    <view class="login-guard-title">请先登录</view>
+    <view class="login-guard-text">编辑文章、保存草稿和提交审核需要登录账号。</view>
+    <button class="login-guard-btn" bindtap="goLogin">去登录</button>
+  </view>
+
+  <block wx:else>
+  <view class="header">
+    <view class="eyebrow">草稿编辑</view>
+    <view class="title">修改文章</view>
+    <view class="hint">保存草稿不会进入后台；提交审核后管理员才能看到。</view>
+  </view>
+
+  <view class="form">
+    <view class="label">文章封面</view>
+    <view class="cover-picker" bindtap="chooseCover">
+      <image wx:if="{{coverUrl}}" class="cover-image" src="{{coverUrl}}" mode="aspectFill" catchtap="previewCover" />
+      <view wx:else class="cover-empty">选择文章图片</view>
+      <view wx:if="{{uploadingCover}}" class="cover-mask">上传中...</view>
+    </view>
+    <button wx:if="{{coverUrl}}" class="remove-cover" catchtap="removeCover">移除封面</button>
+
+    <view class="label">标题</view>
+    <input class="input" value="{{title}}" maxlength="80" placeholder="写一个清晰的标题" bindinput="onTitleInput" />
+
+    <view class="label">正文</view>
+    <textarea class="textarea" value="{{content}}" maxlength="10000" placeholder="分享你的内容、想法或问题" bindinput="onContentInput" />
+
+    <view class="actions">
+      <button class="draft" loading="{{saving}}" disabled="{{saving || submitting || loading || uploadingCover}}" bindtap="saveDraft">保存草稿</button>
+      <button class="submit" loading="{{submitting}}" disabled="{{saving || submitting || loading || uploadingCover}}" bindtap="submit">提交审核</button>
+    </view>
+  </view>
+  </block>
+
+  <view wx:if="{{confirmVisible}}" class="confirm-mask">
+    <view class="confirm-card card-shadow">
+      <view class="confirm-kicker {{confirmDanger ? 'danger' : ''}}">{{confirmDanger ? '重要操作' : '请确认'}}</view>
+      <view class="confirm-title">{{confirmTitle}}</view>
+      <view class="confirm-text">{{confirmText}}</view>
+      <view class="confirm-actions">
+        <button class="confirm-cancel" bindtap="closeConfirm">取消</button>
+        <button class="confirm-ok {{confirmDanger ? 'danger-bg' : ''}}" bindtap="confirmAction">确认</button>
+      </view>
+    </view>
+  </view>
+</view>

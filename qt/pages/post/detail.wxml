@@ -1,0 +1,52 @@
+<view class="page">
+  <view class="status" wx:if="{{loading}}">文章加载中...</view>
+  <view class="status error" wx:elif="{{error}}">{{error}}</view>
+
+  <view wx:else class="article">
+    <image wx:if="{{post.coverUrl}}" class="cover" src="{{post.coverUrl}}" mode="aspectFill" />
+    <view class="meta">{{post.categoryName}} / {{post.authorName}} / {{post.viewCount}} 浏览 / {{post.favoriteCount}} 收藏</view>
+    <view class="title">{{post.title}}</view>
+    <view class="tags">
+      <text wx:for="{{post.tags}}" wx:key="*this" class="tag">#{{item}}</text>
+    </view>
+    <view class="content">{{post.content}}</view>
+    <view class="article-actions">
+      <button class="favorite-btn {{post.isFavorited ? 'active' : ''}}" loading="{{favoriting}}" disabled="{{favoriting}}" bindtap="favoritePost">{{post.isFavorited ? '已收藏' : '收藏文章'}}</button>
+      <button class="ai-recommend-btn" loading="{{aiRecommending}}" disabled="{{aiRecommending}}" bindtap="recommendPost">{{aiRecommending ? '分析中' : 'AI 推荐'}}</button>
+      <button wx:if="{{!currentUserId || currentUserId !== post.authorId}}" class="chat-author-btn" bindtap="openAuthorChat">作者会话</button>
+    </view>
+    <view wx:if="{{aiRecommendation}}" class="ai-card">
+      <view class="ai-card-head">
+        <view class="ai-title">{{aiRecommendation.recommendation === 'not_recommended' ? 'AI 建议谨慎阅读' : 'AI 推荐阅读'}}</view>
+        <view class="ai-score">{{aiRecommendation.score}} 分</view>
+      </view>
+      <view class="ai-text">{{aiRecommendation.summary}}</view>
+      <view class="ai-note">AI 只提供点评和风险识别，是否收藏仍由你自己决定。</view>
+    </view>
+
+    <view class="comment-box">
+      <view class="section-title">评论</view>
+      <textarea class="comment-input" value="{{commentContent}}" placeholder="写下你的评论" bindinput="onCommentInput" />
+      <button class="comment-submit" loading="{{submitting}}" disabled="{{submitting}}" bindtap="submitComment">
+        发布评论
+      </button>
+      <view wx:for="{{comments}}" wx:key="id" class="comment-item">
+        <view class="comment-meta">{{item.authorName}}</view>
+        <view class="comment-content">{{item.content}}</view>
+      </view>
+      <view wx:if="{{comments.length === 0}}" class="empty">暂无评论</view>
+    </view>
+  </view>
+
+  <view wx:if="{{unfavoriteConfirmVisible}}" class="confirm-mask">
+    <view class="confirm-card card-shadow">
+      <view class="confirm-kicker">取消确认</view>
+      <view class="confirm-title">确认取消收藏吗？</view>
+      <view class="confirm-text">取消后这篇文章会从“我的收藏”里移除，文章本身不会受到影响。</view>
+      <view class="confirm-actions">
+        <button class="confirm-cancel" disabled="{{favoriting}}" bindtap="closeUnfavoriteConfirm">取消</button>
+        <button class="confirm-ok" loading="{{favoriting}}" disabled="{{favoriting}}" bindtap="confirmUnfavorite">确认取消</button>
+      </view>
+    </view>
+  </view>
+</view>

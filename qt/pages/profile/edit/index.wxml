@@ -1,0 +1,28 @@
+<view class="page">
+  <view wx:if="{{needLogin}}" class="login-guard card-shadow">
+    <view class="login-guard-title">请先登录</view>
+    <view class="login-guard-text">编辑个人资料需要登录账号。</view>
+    <button class="login-guard-btn" bindtap="goLogin">去登录</button>
+  </view>
+
+  <block wx:else>
+  <view class="form card-shadow">
+    <view class="avatar-field">
+      <view class="avatar-wrap" bindtap="chooseAvatar">
+        <image wx:if="{{avatarUrl}}" class="avatar-image" src="{{avatarUrl}}" mode="aspectFill" catchtap="previewAvatar" />
+        <view wx:else class="avatar">{{avatarText}}</view>
+        <view wx:if="{{uploadingAvatar}}" class="avatar-mask">上传中</view>
+      </view>
+      <button class="avatar-btn" loading="{{uploadingAvatar}}" disabled="{{uploadingAvatar}}" bindtap="chooseAvatar">上传头像</button>
+    </view>
+
+    <view class="label">用户名</view>
+    <input class="input" value="{{username}}" bindinput="onUsernameInput" placeholder="字母、数字、下划线" />
+
+    <view class="label">简介</view>
+    <textarea class="textarea" value="{{bio}}" bindinput="onBioInput" placeholder="简单介绍一下自己" />
+
+    <button class="submit" loading="{{saving}}" disabled="{{saving || uploadingAvatar}}" bindtap="saveProfile">保存资料</button>
+  </view>
+  </block>
+</view>

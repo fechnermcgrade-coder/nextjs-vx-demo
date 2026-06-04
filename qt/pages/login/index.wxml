@@ -1,0 +1,31 @@
+<view class="login-page">
+  <view class="hero">
+    <view class="logo">V</view>
+    <view class="title">Vitex 社区</view>
+    <view class="subtitle">邮箱账号登录，用户名全站唯一</view>
+  </view>
+
+  <view class="auth-card card-shadow">
+    <view class="tabs">
+      <view class="tab {{mode === 'login' ? 'active' : ''}}" bindtap="switchMode">登录</view>
+      <view class="tab {{mode === 'register' ? 'active' : ''}}" bindtap="switchMode">注册</view>
+    </view>
+
+    <view class="label">邮箱</view>
+    <input class="input" type="text" value="{{email}}" data-field="email" bindinput="onInput" placeholder="name@example.com" />
+
+    <block wx:if="{{mode === 'register'}}">
+      <view class="label">唯一用户名</view>
+      <input class="input" value="{{username}}" data-field="username" bindinput="onInput" placeholder="字母、数字、下划线" />
+    </block>
+
+    <view class="label">密码</view>
+    <input class="input" password value="{{password}}" data-field="password" bindinput="onInput" placeholder="至少 6 位" />
+
+    <button class="submit" loading="{{submitting}}" disabled="{{submitting}}" bindtap="submit">
+      {{submitting ? '处理中...' : (mode === 'login' ? '邮箱登录' : '创建账号')}}
+    </button>
+
+    <view class="tip">登录后可保存草稿、提交审核、评论、私信和查看通知。</view>
+  </view>
+</view>

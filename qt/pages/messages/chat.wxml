@@ -1,0 +1,14 @@
+<view class="page">
+  <view wx:if="{{loading}}" class="empty">会话加载中...</view>
+  <view wx:else class="messages">
+    <view wx:for="{{messages}}" wx:key="id" class="message">
+      <view class="message-name">{{item.senderName}}</view>
+      <view class="message-content">{{item.content}}</view>
+    </view>
+    <view wx:if="{{messages.length === 0}}" class="empty">暂无消息</view>
+  </view>
+  <view class="composer">
+    <input class="input" value="{{content}}" bindinput="onInput" placeholder="输入消息" />
+    <button class="send" loading="{{sending}}" disabled="{{sending}}" bindtap="send">发送</button>
+  </view>
+</view>

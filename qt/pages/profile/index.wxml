@@ -1,0 +1,68 @@
+<view class="page">
+  <view wx:if="{{needLogin}}" class="login-guard card-shadow">
+    <view class="login-guard-title">请先登录</view>
+    <view class="login-guard-text">个人中心、草稿箱和审核进度需要登录后查看。</view>
+    <button class="login-guard-btn" bindtap="goLogin">去登录</button>
+  </view>
+
+  <block wx:else>
+  <view class="user-card card-shadow">
+    <view class="avatar-wrap" bindtap="previewAvatar">
+      <image wx:if="{{avatarUrl}}" class="avatar-image" src="{{avatarUrl}}" mode="aspectFill" catchtap="previewAvatar" />
+      <view wx:else class="avatar">{{avatarText}}</view>
+    </view>
+    <view class="title">我的内容中心</view>
+    <view class="subtitle" wx:if="{{user}}">@{{user.username}} · {{user.email}}</view>
+  </view>
+
+  <view class="panel card-shadow">
+    <button class="panel-item" bindtap="editProfile"><text>编辑信息</text></button>
+    <button class="panel-item" bindtap="openNotifications"><text>通知</text></button>
+    <button class="panel-item danger" bindtap="askLogout"><text>退出登录</text></button>
+  </view>
+
+  <view class="panel panel-second card-shadow">
+    <button class="panel-item favorite {{listMode === 'favorites' ? 'active' : ''}}" bindtap="openFavorites"><text>我的收藏</text></button>
+    <button class="panel-item history {{listMode === 'history' ? 'active' : ''}}" bindtap="openHistory"><text>浏览历史</text></button>
+    <button class="panel-item clear" loading="{{clearingHistory}}" disabled="{{clearingHistory}}" bindtap="askClearHistory"><text>清空历史</text></button>
+  </view>
+
+  <view class="tabs card-shadow">
+    <view wx:for="{{tabs}}" wx:key="key" data-tab="{{item.key}}" bindtap="switchTab" class="tab {{listMode === 'posts' && tab === item.key ? 'active' : ''}}">
+      <text>{{item.label}}</text>
+      <text class="tab-count">{{counts[item.key] || 0}}</text>
+    </view>
+  </view>
+
+  <view class="list-title">{{listTitle}}</view>
+  <view class="post-list">
+    <view wx:if="{{loading}}" class="empty">加载中...</view>
+    <view wx:elif="{{posts.length === 0}}" class="empty">暂无内容</view>
+    <view wx:else>
+      <view wx:for="{{posts}}" wx:key="id" class="post-card card-shadow">
+        <image wx:if="{{item.coverUrl}}" class="post-cover" src="{{item.coverUrl}}" mode="aspectFill" bindtap="openPost" data-id="{{item.id}}" />
+        <view class="post-head"><view class="post-title" bindtap="openPost" data-id="{{item.id}}">{{item.title}}</view><view class="tag {{item.moderationReason}}">{{item.tagText}}</view></view>
+        <view class="post-excerpt">{{item.excerpt}}</view>
+        <view wx:if="{{item.moderationNote}}" class="note">{{item.moderationNote}}</view>
+        <view class="post-meta">{{item.categoryName}} · {{item.viewCount || 0}} 浏览 · {{item.favoriteCount || 0}} 收藏 · {{item.commentCount || 0}} 评论</view>
+        <view class="post-actions" wx:if="{{listMode === 'posts' && tab === 'draft'}}"><button bindtap="editPost" data-id="{{item.id}}" disabled="{{busyId === item.id}}">编辑</button><button bindtap="submitPost" data-id="{{item.id}}" disabled="{{busyId === item.id}}">{{busyId === item.id ? '处理中' : '提交审核'}}</button><button class="danger" bindtap="deletePost" data-id="{{item.id}}" disabled="{{busyId === item.id}}">删除</button></view>
+        <view class="post-actions" wx:if="{{listMode === 'posts' && tab === 'published'}}"><button bindtap="openPost" data-id="{{item.id}}">查看</button><button class="danger" bindtap="unpublishPost" data-id="{{item.id}}" disabled="{{busyId === item.id}}">{{busyId === item.id ? '处理中' : '下架'}}</button></view>
+        <view class="post-actions" wx:if="{{listMode === 'posts' && tab === 'pending'}}"><button bindtap="openPost" data-id="{{item.id}}">查看</button><button class="disabled" disabled>等待审核</button></view>
+        <view class="post-actions" wx:if="{{listMode !== 'posts'}}"><button bindtap="openPost" data-id="{{item.id}}">查看</button><button wx:if="{{listMode === 'favorites'}}" class="danger" bindtap="removeFavorite" data-id="{{item.id}}" disabled="{{busyId === item.id}}">{{busyId === item.id ? '处理中' : '取消收藏'}}</button></view>
+      </view>
+    </view>
+  </view>
+
+  <view wx:if="{{confirmVisible}}" class="confirm-mask">
+    <view class="confirm-card card-shadow">
+      <view class="confirm-kicker">{{confirmKicker}}</view>
+      <view class="confirm-title">{{confirmTitle}}</view>
+      <view class="confirm-text">{{confirmText}}</view>
+      <view class="confirm-actions">
+        <button class="confirm-cancel" disabled="{{confirmLoading}}" bindtap="closeConfirm">取消</button>
+        <button class="confirm-ok" loading="{{confirmLoading}}" disabled="{{confirmLoading}}" bindtap="confirmAction">{{confirmOkText}}</button>
+      </view>
+    </view>
+  </view>
+  </block>
+</view>
