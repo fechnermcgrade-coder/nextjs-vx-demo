@@ -11,6 +11,12 @@ Page({
     this.loadNotifications()
   },
 
+  onShow() {
+    if (!wx.getStorageSync('token')) {
+      this.setData({ notifications: [], loading: false, confirmVisible: false })
+    }
+  },
+
   loadNotifications() {
     this.setData({ loading: true })
     ensureLogin()

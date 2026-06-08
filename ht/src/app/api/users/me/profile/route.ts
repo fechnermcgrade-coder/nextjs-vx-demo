@@ -4,7 +4,7 @@ import { ok, fail, handleRouteError } from "@/lib/http";
 import { repository } from "@/lib/repository";
 
 const schema = z.object({
-  username: z.string().min(3).max(32).regex(/^[A-Za-z0-9_]+$/).optional(),
+  username: z.string().min(1).max(32).regex(/^[\p{L}\p{N}_-]+$/u).optional(),
   avatarUrl: z.string().max(3_000_000).optional(),
   bio: z.string().max(160).optional()
 });

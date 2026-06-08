@@ -1,4 +1,8 @@
-const { request, ensureLogin } = require('../../utils/request')
+const { request, ensureLogin, getSessionScope } = require('../../utils/request')
+
+function isLoggedIn() {
+  return Boolean(wx.getStorageSync('token'))
+}
 
 function welcomeMessage() {
   return {
@@ -15,24 +19,70 @@ Page({
     loadedThreads: false,
     aiMessages: [welcomeMessage()],
     aiInput: '',
-    aiSending: false
+    aiSending: false,
+    needLogin: false,
+    sessionScope: ''
   },
 
   onLoad() {
-    this.loadThreads()
+    this.syncLoginState()
   },
 
   onShow() {
-    if (wx.getStorageSync('token') && !this.data.loadedThreads) this.loadThreads()
+    this.syncLoginState()
+  },
+
+  syncLoginState() {
+    if (!isLoggedIn()) {
+      this.resetPrivateState({ loading: false, needLogin: true })
+      return
+    }
+
+    const sessionScope = getSessionScope()
+    if (this.data.needLogin || !this.data.sessionScope) {
+      this.setData({ needLogin: false, sessionScope })
+    } else if (this.data.sessionScope !== sessionScope) {
+      this.resetPrivateState({ loading: true, needLogin: false, sessionScope })
+    } else {
+      this.setData({ needLogin: false, sessionScope })
+    }
+
+    if (!this.data.loadedThreads && !this.data.loading) {
+      this.loadThreads()
+    } else if (!this.data.loadedThreads && this.data.loading) {
+      this.loadThreads()
+    }
+  },
+
+  resetPrivateState(extra) {
+    this.setData(Object.assign({
+      threads: [],
+      loading: true,
+      loadedThreads: false,
+      aiMessages: [welcomeMessage()],
+      aiInput: '',
+      aiSending: false,
+      needLogin: false,
+      sessionScope: ''
+    }, extra || {}))
+  },
+
+  goLogin() {
+    wx.navigateTo({ url: '/pages/login/index?next=%2Fpages%2Fmessages%2Findex' })
   },
 
   loadThreads() {
-    this.setData({ loading: true })
+    if (!isLoggedIn()) {
+      this.resetPrivateState({ loading: false, needLogin: true })
+      return
+    }
+
+    this.setData({ loading: true, needLogin: false })
     ensureLogin()
       .then(() => request({ url: '/api/messages/threads' }))
-      .then((data) => this.setData({ threads: data.threads || [], loading: false, loadedThreads: true }))
+      .then((data) => this.setData({ threads: data.threads || [], loading: false, loadedThreads: true, needLogin: false }))
       .catch((error) => {
-        this.setData({ loading: false })
+        this.setData({ loading: false, needLogin: !isLoggedIn() })
         wx.showToast({ title: error.message || '消息加载失败', icon: 'none' })
       })
   },
@@ -53,7 +103,7 @@ Page({
     if (!content || this.data.aiSending) return
     const userMessage = { role: 'user', content, createdAt: Date.now() }
     const nextMessages = this.data.aiMessages.concat(userMessage)
-    this.setData({ aiMessages: nextMessages, aiInput: '', aiSending: true })
+    this.setData({ aiMessages: nextMessages, aiInput: '', aiSending: true, needLogin: false })
     ensureLogin()
       .then(() => request({
         url: '/api/ai/profile-chat',
@@ -74,6 +124,7 @@ Page({
       })
       .catch((error) => {
         this.setData({
+          needLogin: !isLoggedIn(),
           aiMessages: this.data.aiMessages.concat({
             role: 'assistant',
             content: error.message || 'AI 对话失败',

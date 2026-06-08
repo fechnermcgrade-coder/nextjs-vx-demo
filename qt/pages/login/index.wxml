@@ -16,7 +16,7 @@
 
     <block wx:if="{{mode === 'register'}}">
       <view class="label">唯一用户名</view>
-      <input class="input" value="{{username}}" data-field="username" bindinput="onInput" placeholder="字母、数字、下划线" />
+      <input class="input" value="{{username}}" data-field="username" bindinput="onInput" placeholder="支持中文、字母、数字、下划线" />
     </block>
 
     <view class="label">密码</view>

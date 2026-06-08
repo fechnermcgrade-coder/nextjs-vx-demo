@@ -1,4 +1,4 @@
-const { request, getStoredUser, logout } = require('../../utils/request')
+const { request, getStoredUser, logout, getSessionScope } = require('../../utils/request')
 
 const tabs = [
   { key: 'published', label: '我的文章', status: 'published' },
@@ -26,6 +26,10 @@ function countByStatus(cache) {
   }
 }
 
+function scopedKey(scope, key) {
+  return `${scope || getSessionScope()}:${key}`
+}
+
 Page({
   data: {
     tabs,
@@ -51,14 +55,16 @@ Page({
     confirmKicker: '',
     confirmTitle: '',
     confirmText: '',
+    sessionScope: '',
     confirmOkText: '确认'
   },
 
   onLoad() {
     if (!wx.getStorageSync('token')) {
-      this.setData({ needLogin: true, loading: false })
+      this.resetPrivateState({ needLogin: true, loading: false })
       return
     }
+    this.setData({ sessionScope: getSessionScope() })
     const user = getStoredUser()
     if (user) this.bindUser(user)
     this.loadMe()
@@ -68,23 +74,54 @@ Page({
 
   onShow() {
     const loggedIn = Boolean(wx.getStorageSync('token'))
-    this.setData({ needLogin: !loggedIn })
-    if (!loggedIn) return
+    if (!loggedIn) {
+      this.resetPrivateState({ needLogin: true, loading: false })
+      return
+    }
+    const sessionScope = getSessionScope()
+    const switchedUser = Boolean(this.data.sessionScope && this.data.sessionScope !== sessionScope)
+    if (switchedUser) {
+      this.resetPrivateState({ needLogin: false, loading: true, sessionScope })
+    } else {
+      this.setData({ needLogin: false, sessionScope })
+    }
     if (wx.getStorageSync('favorites_dirty')) {
       wx.removeStorageSync('favorites_dirty')
       const collectionCache = Object.assign({}, this.data.collectionCache)
-      delete collectionCache.favorites
+      delete collectionCache[scopedKey(sessionScope, 'favorites')]
       this.setData({ collectionCache })
       if (this.data.listMode === 'favorites') this.loadCollection('favorites', true)
     }
     const user = getStoredUser()
     if (user) this.bindUser(user)
     if (!this.data.loadedMe) this.loadMe()
+    if (switchedUser && this.data.listMode !== 'posts') {
+      this.loadCollection(this.data.listMode, true)
+      return
+    }
     if (this.data.listMode === 'posts' && !this.data.postsCache[this.data.tab]) this.loadPosts(this.data.tab)
   },
 
   goLogin() {
     wx.navigateTo({ url: '/pages/login/index?next=%2Fpages%2Fprofile%2Findex' })
+  },
+
+  resetPrivateState(extra) {
+    this.setData(Object.assign({
+      user: null,
+      avatarUrl: '',
+      avatarText: '我',
+      posts: [],
+      postsCache: {},
+      collectionCache: {},
+      counts: { published: 0, draft: 0, pending: 0 },
+      loadedMe: false,
+      busyId: '',
+      clearingHistory: false,
+      confirmVisible: false,
+      confirmLoading: false,
+      sessionScope: ''
+    }, extra || {}))
   },
 
   bindUser(user) {
@@ -140,18 +177,21 @@ Page({
   },
 
   loadCollection(mode, force) {
-    const cached = this.data.collectionCache[mode]
+    const scope = getSessionScope()
+    const cacheKey = scopedKey(scope, mode)
+    const cached = this.data.collectionCache[cacheKey]
     const title = mode === 'favorites' ? '我的收藏' : '浏览历史'
     if (cached && !force) {
       this.setData({ posts: cached, loading: false, listMode: mode, listTitle: title })
       return
     }
-    this.setData({ loading: true, posts: [], listMode: mode, listTitle: title })
+    this.setData({ loading: true, posts: [], listMode: mode, listTitle: title, sessionScope: scope })
     const url = mode === 'favorites' ? '/api/users/me/favorites' : '/api/users/me/history'
     request({ url })
       .then((data) => {
+        if (getSessionScope() !== scope) return
         const posts = decoratePosts(data.posts)
-        this.setData({ posts, loading: false, collectionCache: Object.assign({}, this.data.collectionCache, { [mode]: posts }) })
+        this.setData({ posts, loading: false, collectionCache: Object.assign({}, this.data.collectionCache, { [cacheKey]: posts }) })
       })
       .catch((error) => {
         this.setData({ loading: false })
@@ -207,7 +247,7 @@ Page({
     request({ url: '/api/users/me/history', method: 'DELETE' })
       .then(() => {
         wx.showToast({ title: '已清空历史', icon: 'success' })
-        const collectionCache = Object.assign({}, this.data.collectionCache, { history: [] })
+        const collectionCache = Object.assign({}, this.data.collectionCache, { [scopedKey(this.data.sessionScope, 'history')]: [] })
         this.setData({ collectionCache, posts: this.data.listMode === 'history' ? [] : this.data.posts })
         this.closeConfirm()
       })
@@ -232,12 +272,16 @@ Page({
     request({ url: `/api/posts/${id}/favorite`, method: 'DELETE' })
       .then(() => {
         wx.showToast({ title: '已取消收藏', icon: 'success' })
-        const nextFavorites = (this.data.collectionCache.favorites || this.data.posts).filter((post) => post.id !== id)
-        const collectionCache = Object.assign({}, this.data.collectionCache, { favorites: nextFavorites })
+        const cacheKey = scopedKey(this.data.sessionScope, 'favorites')
+        const nextFavorites = (this.data.collectionCache[cacheKey] || this.data.posts).filter((post) => post.id !== id)
+        const collectionCache = Object.assign({}, this.data.collectionCache, { [cacheKey]: nextFavorites })
         this.setData({ collectionCache, posts: this.data.listMode === 'favorites' ? nextFavorites : this.data.posts })
         this.closeConfirm()
       })
-      .catch((error) => wx.showToast({ title: error.message || '取消失败', icon: 'none' }))
+      .catch((error) => {
+        if (this.data.listMode === 'favorites') this.loadCollection('favorites', true)
+        wx.showToast({ title: error.message || '取消失败', icon: 'none' })
+      })
       .finally(() => this.setData({ busyId: '', confirmLoading: false }))
   },
 

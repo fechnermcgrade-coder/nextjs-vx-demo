@@ -1,4 +1,4 @@
-const { request, ensureLogin } = require('../../utils/request')
+const { request, ensureLogin, getSessionScope } = require('../../utils/request')
 
 Page({
   data: {
@@ -7,7 +7,8 @@ Page({
     messages: [],
     content: '',
     loading: true,
-    sending: false
+    sending: false,
+    sessionScope: ''
   },
 
   onLoad(options) {
@@ -16,7 +17,20 @@ Page({
       peerName: decodeURIComponent(options.peerName || '会话')
     })
     wx.setNavigationBarTitle({ title: this.data.peerName })
+    this.setData({ sessionScope: getSessionScope() })
     this.loadMessages()
+  },
+
+  onShow() {
+    const sessionScope = getSessionScope()
+    if (!wx.getStorageSync('token')) {
+      this.setData({ messages: [], content: '', loading: false, sending: false, sessionScope: '' })
+      return
+    }
+    if (this.data.sessionScope && this.data.sessionScope !== sessionScope) {
+      this.setData({ messages: [], content: '', loading: true, sending: false, sessionScope })
+      this.loadMessages()
+    }
   },
 
   loadMessages() {

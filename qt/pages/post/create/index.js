@@ -1,58 +1,60 @@
 const { request, uploadImage } = require('../../../utils/request')
 
+const emptyForm = {
+  id: '',
+  title: '',
+  content: '',
+  coverUrl: '',
+  loading: false,
+  generating: false,
+  saving: false,
+  submitting: false,
+  uploadingCover: false,
+  confirmVisible: false,
+  confirmType: '',
+  confirmTitle: '',
+  confirmText: '',
+  confirmDanger: false
+}
+
 Page({
   data: {
     needLogin: false,
-    id: '',
-    title: '',
-    content: '',
-    coverUrl: '',
-    loading: false,
-    generating: false,
-    saving: false,
-    submitting: false,
-    uploadingCover: false,
-    confirmVisible: false,
-    confirmType: '',
-    confirmTitle: '',
-    confirmText: '',
-    confirmDanger: false
+    ...emptyForm
   },
 
-  onLoad(options) {
+  resetForm() {
+    this.setData({ ...emptyForm })
+  },
+
+  onLoad() {
     if (!wx.getStorageSync('token')) {
       this.setData({ needLogin: true, loading: false })
       return
     }
-    if (options.id) {
-      this.setData({ id: options.id })
-      this.loadPost(options.id)
-    }
+    this.resetForm()
   },
 
   onShow() {
-    this.setData({ needLogin: !wx.getStorageSync('token') })
+    if (!wx.getStorageSync('token')) {
+      this.setData({ needLogin: true })
+      return
+    }
+    this.setData({ needLogin: false })
+    if (this.data.id) this.resetForm()
   },
 
   goLogin() {
     wx.navigateTo({ url: '/pages/login/index?next=%2Fpages%2Fpost%2Fcreate%2Findex' })
   },
 
-  loadPost(id) {
-    this.setData({ loading: true })
-    request({ url: `/api/posts/${id}` })
-      .then((data) => {
-        const post = data.post || {}
-        this.setData({ title: post.title || '', content: post.content || '', coverUrl: post.coverUrl || '', loading: false })
-      })
-      .catch((error) => {
-        this.setData({ loading: false })
-        wx.showToast({ title: error.message || '文章加载失败', icon: 'none' })
-      })
+  onTitleInput(event) {
+    this.setData({ title: event.detail.value })
   },
 
-  onTitleInput(event) { this.setData({ title: event.detail.value }) },
-  onContentInput(event) { this.setData({ content: event.detail.value }) },
+  onContentInput(event) {
+    this.setData({ content: event.detail.value })
+  },
 
   chooseCover() {
     wx.chooseImage({
@@ -90,6 +92,10 @@ Page({
       wx.showToast({ title: '标题和正文都要填写', icon: 'none' })
       return null
     }
+    if (this.data.uploadingCover) {
+      wx.showToast({ title: '封面上传中，请稍候', icon: 'none' })
+      return null
+    }
     return { title, content, coverUrl: this.data.coverUrl }
   },
 
@@ -103,11 +109,23 @@ Page({
   },
 
   showConfirm(type, title, text, danger) {
-    this.setData({ confirmVisible: true, confirmType: type, confirmTitle: title, confirmText: text, confirmDanger: Boolean(danger) })
+    this.setData({
+      confirmVisible: true,
+      confirmType: type,
+      confirmTitle: title,
+      confirmText: text,
+      confirmDanger: Boolean(danger)
+    })
   },
 
   closeConfirm() {
-    this.setData({ confirmVisible: false, confirmType: '', confirmTitle: '', confirmText: '', confirmDanger: false })
+    this.setData({
+      confirmVisible: false,
+      confirmType: '',
+      confirmTitle: '',
+      confirmText: '',
+      confirmDanger: false
+    })
   },
 
   confirmAction() {
@@ -121,7 +139,11 @@ Page({
   aiWrite() {
     if (!this.validateTitle() || this.data.generating) return
     const text = this.data.content.trim()
-    this.showConfirm('ai', 'AI 生文', text ? 'AI 会结合标题和你已输入的正文生成新正文，确认继续吗？' : 'AI 会根据标题生成正文，确认继续吗？')
+    this.showConfirm(
+      'ai',
+      'AI 生文',
+      text ? 'AI 会结合标题和你已输入的正文生成新正文，确认继续吗？' : 'AI 会根据标题生成正文，确认继续吗？'
+    )
   },
 
   runAiWrite() {
@@ -158,13 +180,11 @@ Page({
   save(submit, payload) {
     const key = submit ? 'submitting' : 'saving'
     this.setData({ [key]: true })
-    const method = this.data.id ? 'PUT' : 'POST'
-    const url = this.data.id ? `/api/posts/${this.data.id}` : '/api/posts'
-    request({ url, method, data: Object.assign({}, payload, { submit }) })
+    request({ url: '/api/posts', method: 'POST', data: Object.assign({}, payload, { submit }) })
       .then((data) => {
-        const post = data.post || {}
-        if (post.id) this.setData({ id: post.id })
+        if (data.post?.id) wx.setStorageSync('posts_dirty', '1')
         wx.showToast({ title: submit ? '已提交审核' : '草稿已保存', icon: 'success' })
+        this.resetForm()
         setTimeout(() => wx.switchTab({ url: '/pages/profile/index' }), 500)
       })
       .catch((error) => wx.showToast({ title: error.message || '保存失败', icon: 'none' }))

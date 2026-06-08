@@ -145,6 +145,10 @@ async function main() {
     await client.query("delete from users where id not in ($1, $2)", [adminId, userId]);
 
     await client.query("update users set nickname = username where nickname is distinct from username");
+    await runIfTableExists("posts", "update posts p set author_name = u.username from users u where p.author_id = u.id and p.author_name is distinct from u.username");
+    await runIfTableExists("comments", "update comments c set author_name = u.username from users u where c.author_id = u.id and c.author_name is distinct from u.username");
+    await runIfTableExists("messages", "update messages m set sender_name = u.username from users u where m.sender_id = u.id and m.sender_name is distinct from u.username");
+    await runIfTableExists("messages", "update messages m set receiver_name = u.username from users u where m.receiver_id = u.id and m.receiver_name is distinct from u.username");
     await client.query("alter table users alter column username set not null");
     await client.query("alter table users alter column nickname set not null");
     await client.query("alter table users drop constraint if exists users_nickname_matches_username");

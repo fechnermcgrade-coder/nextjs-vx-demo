@@ -120,6 +120,23 @@ async function ensureViewHistoryTable() {
   await query("create index if not exists view_history_user_viewed_at_idx on view_history (user_id, viewed_at desc)");
 }
 
+let favoritesTableReady = false;
+async function ensureFavoritesTable() {
+  if (!hasDatabase() || favoritesTableReady) return;
+  await query(`
+    create table if not exists favorites (
+      user_id uuid not null references users(id) on delete cascade,
+      post_id uuid not null references posts(id) on delete cascade,
+      created_at timestamptz not null default now(),
+      primary key (user_id, post_id)
+    )
+  `);
+  await query("alter table favorites add column if not exists created_at timestamptz not null default now()");
+  await query("alter table favorites enable row level security");
+  await query("create index if not exists favorites_user_created_at_idx on favorites (user_id, created_at desc)");
+  favoritesTableReady = true;
+}
+
 let notificationsTableReady = false;
 async function ensureNotificationsTable() {
   if (!hasDatabase() || notificationsTableReady) return;
@@ -139,19 +156,25 @@ async function ensureNotificationsTable() {
       created_at timestamptz not null default now()
     )
   `);
+  await query("alter table notifications add column if not exists type text not null default 'system'");
+  await query("alter table notifications add column if not exists title text not null default '通知'");
+  await query("alter table notifications add column if not exists content text not null default ''");
+  await query("alter table notifications add column if not exists read_at timestamptz");
+  await query("alter table notifications add column if not exists created_at timestamptz not null default now()");
   await query("alter table notifications enable row level security");
   await query("create index if not exists notifications_user_created_at_idx on notifications (user_id, created_at desc)");
   notificationsTableReady = true;
 }
 
 function toUser(row: DbUser): User {
+  const username = row.username ?? row.nickname;
   return {
     id: row.id,
     openid: row.openid ?? undefined,
     email: row.email ?? undefined,
-    username: row.username ?? row.nickname,
+    username,
     passwordHash: row.password_hash ?? "",
-    nickname: row.nickname,
+    nickname: username,
     avatarUrl: row.avatar_url ?? "",
     bio: row.bio ?? "",
     role: row.role,
@@ -255,6 +278,14 @@ function makeExcerpt(content: string) {
 async function countTable(table: string) {
   const rows = await query<{ count: string }>(`select count(*)::text as count from ${table}`);
   return Number(rows[0]?.count ?? 0);
+}
+
+async function safeCountTable(table: string) {
+  try {
+    return await countTable(table);
+  } catch {
+    return 0;
+  }
 }
 
 let messagesTableReady = false;
@@ -447,7 +478,13 @@ export const repository = {
 
   async listPublishedPosts() {
     if (hasDatabase()) {
-      const rows = await query<DbPost>("select * from posts where status = 'published' order by created_at desc");
+      const rows = await query<DbPost>(
+        `select p.*, coalesce(u.username, u.nickname, p.author_name) as author_name
+         from posts p
+         left join users u on u.id = p.author_id
+         where p.status = 'published'
+         order by p.created_at desc`
+      );
       return rows.map(toPost);
     }
     return sortDescByCreatedAt(store.posts.filter((post) => post.status === "published"));
@@ -455,7 +492,12 @@ export const repository = {
 
   async listAdminPosts() {
     if (hasDatabase()) {
-      const rows = await query<DbPost>("select * from posts order by created_at desc");
+      const rows = await query<DbPost>(
+        `select p.*, coalesce(u.username, u.nickname, p.author_name) as author_name
+         from posts p
+         left join users u on u.id = p.author_id
+         order by p.created_at desc`
+      );
       return rows.map(toPost);
     }
     return sortDescByCreatedAt(store.posts);
@@ -464,9 +506,11 @@ export const repository = {
   async listUserPosts(userId: string, status?: PostStatus) {
     if (hasDatabase()) {
       const rows = await query<DbPost>(
-        `select * from posts
-         where author_id = $1 and ($2::text is null or status = $2)
-         order by created_at desc`,
+        `select p.*, coalesce(u.username, u.nickname, p.author_name) as author_name
+         from posts p
+         left join users u on u.id = p.author_id
+         where p.author_id = $1 and ($2::text is null or p.status = $2)
+         order by p.created_at desc`,
         [userId, status ?? null]
       );
       return rows.map(toPost);
@@ -476,7 +520,14 @@ export const repository = {
 
   async getPost(id: string) {
     if (hasDatabase()) {
-      const rows = await query<DbPost>("select * from posts where id = $1 limit 1", [id]);
+      const rows = await query<DbPost>(
+        `select p.*, coalesce(u.username, u.nickname, p.author_name) as author_name
+         from posts p
+         left join users u on u.id = p.author_id
+         where p.id = $1
+         limit 1`,
+        [id]
+      );
       return rows[0] ? toPost(rows[0]) : null;
     }
     return store.posts.find((post) => post.id === id) ?? null;
@@ -493,7 +544,7 @@ export const repository = {
         `insert into posts (title, excerpt, content, cover_url, category_id, category_name, tags, status, moderation_reason, moderation_note, author_id, author_name)
          values ($1, $2, $3, $4, $5, $6, $7, $8, '', '', $9, $10)
          returning *`,
-        [input.title.trim(), makeExcerpt(content), content, input.coverUrl ?? "", category.id, category.name, input.tags ?? [], input.submit ? "pending" : "draft", author.id, author.nickname]
+        [input.title.trim(), makeExcerpt(content), content, input.coverUrl ?? "", category.id, category.name, input.tags ?? [], input.submit ? "pending" : "draft", author.id, author.username]
       );
       return toPost(rows[0]);
     }
@@ -512,7 +563,7 @@ export const repository = {
       moderationReason: "",
       moderationNote: "",
       authorId: author.id,
-      authorName: author.nickname,
+      authorName: author.username,
       viewCount: 0,
       favoriteCount: 0,
       createdAt: timestamp,
@@ -627,6 +678,7 @@ export const repository = {
     if (!post) throw new Error("文章不存在");
     if (post.status !== "published") throw new Error("只能收藏已发布文章");
     if (hasDatabase()) {
+      await ensureFavoritesTable();
       await query("insert into favorites (user_id, post_id) values ($1, $2) on conflict do nothing", [userId, postId]);
       const rows = await query<DbPost>("update posts set favorite_count = (select count(*) from favorites where post_id = $1) where id = $1 returning *", [postId]);
       return rows[0] ? toPost(rows[0]) : post;
@@ -643,21 +695,23 @@ export const repository = {
     const post = await this.getPost(postId);
     if (!post) throw new Error("文章不存在");
     if (hasDatabase()) {
-      await query("delete from favorites where user_id = $1 and post_id = $2", [userId, postId]);
+      await ensureFavoritesTable();
+      const deleted = await query<{ post_id: string }>("delete from favorites where user_id = $1 and post_id = $2 returning post_id", [userId, postId]);
+      if (!deleted[0]) throw new Error("当前用户未收藏这篇文章");
       const rows = await query<DbPost>("update posts set favorite_count = (select count(*) from favorites where post_id = $1) where id = $1 returning *", [postId]);
       return rows[0] ? toPost(rows[0]) : post;
     }
     const index = store.favorites.findIndex((item) => item.userId === userId && item.postId === postId);
-    if (index >= 0) {
-      store.favorites.splice(index, 1);
-      post.favoriteCount = Math.max(0, post.favoriteCount - 1);
-    }
+    if (index < 0) throw new Error("当前用户未收藏这篇文章");
+    store.favorites.splice(index, 1);
+    post.favoriteCount = Math.max(0, post.favoriteCount - 1);
     return post;
   },
 
   async isPostFavorited(userId: string | undefined, postId: string) {
     if (!userId) return false;
     if (hasDatabase()) {
+      await ensureFavoritesTable();
       const rows = await query<{ exists: boolean }>(
         "select exists(select 1 from favorites where user_id = $1 and post_id = $2) as exists",
         [userId, postId]
@@ -669,10 +723,12 @@ export const repository = {
 
   async listFavoritePosts(userId: string) {
     if (hasDatabase()) {
+      await ensureFavoritesTable();
       const rows = await query<DbPostJoin>(
-        `select p.*, f.created_at as relation_created_at
+        `select p.*, coalesce(u.username, u.nickname, p.author_name) as author_name, f.created_at as relation_created_at
          from favorites f
          join posts p on p.id = f.post_id
+         left join users u on u.id = p.author_id
          where f.user_id = $1 and p.status = 'published'
          order by f.created_at desc`,
         [userId]
@@ -693,9 +749,10 @@ export const repository = {
       try {
         await ensureViewHistoryTable();
         const rows = await query<DbPostJoin>(
-          `select p.*, h.viewed_at as relation_viewed_at
+          `select p.*, coalesce(u.username, u.nickname, p.author_name) as author_name, h.viewed_at as relation_viewed_at
            from view_history h
            join posts p on p.id = h.post_id
+           left join users u on u.id = p.author_id
            where h.user_id = $1 and p.status = 'published'
            order by h.viewed_at desc`,
           [userId]
@@ -777,10 +834,20 @@ export const repository = {
     if (hasDatabase()) {
       const rows = postId
         ? await query<DbComment>(
-            `select * from comments where post_id = $1 ${admin ? "" : "and status = 'published'"} order by created_at desc`,
+            `select c.*, coalesce(u.username, u.nickname, c.author_name) as author_name
+             from comments c
+             left join users u on u.id = c.author_id
+             where c.post_id = $1 ${admin ? "" : "and c.status = 'published'"}
+             order by c.created_at desc`,
             [postId]
           )
-        : await query<DbComment>(`select * from comments ${admin ? "" : "where status = 'published'"} order by created_at desc`);
+        : await query<DbComment>(
+            `select c.*, coalesce(u.username, u.nickname, c.author_name) as author_name
+             from comments c
+             left join users u on u.id = c.author_id
+             ${admin ? "" : "where c.status = 'published'"}
+             order by c.created_at desc`
+          );
       return rows.map(toComment);
     }
     return sortDescByCreatedAt(store.comments.filter((comment) => (!postId || comment.postId === postId) && (admin || comment.status === "published")));
@@ -795,7 +862,7 @@ export const repository = {
         `insert into comments (post_id, post_title, author_id, author_name, content, status)
          values ($1, $2, $3, $4, $5, 'published')
          returning *`,
-        [post.id, post.title, author.id, author.nickname, input.content]
+        [post.id, post.title, author.id, author.username, input.content]
       );
       return toComment(rows[0]);
     }
@@ -804,7 +871,7 @@ export const repository = {
       postId: post.id,
       postTitle: post.title,
       authorId: author.id,
-      authorName: author.nickname,
+      authorName: author.username,
       content: input.content,
       status: "published",
       createdAt: new Date().toISOString()
@@ -840,7 +907,14 @@ export const repository = {
       ? await (async () => {
         await ensureMessagesTable();
         return (await query<DbMessage>(
-          "select * from messages where sender_id = $1 or receiver_id = $1 order by created_at desc",
+          `select m.*,
+                  coalesce(sender.username, sender.nickname, m.sender_name) as sender_name,
+                  coalesce(receiver.username, receiver.nickname, m.receiver_name) as receiver_name
+           from messages m
+           left join users sender on sender.id = m.sender_id
+           left join users receiver on receiver.id = m.receiver_id
+           where m.sender_id = $1 or m.receiver_id = $1
+           order by m.created_at desc`,
           [userId]
         )).map(toMessage);
       })()
@@ -870,9 +944,14 @@ export const repository = {
     if (hasDatabase()) {
       await ensureMessagesTable();
       const rows = await query<DbMessage>(
-        `select * from messages
-         where (sender_id = $1 and receiver_id = $2) or (sender_id = $2 and receiver_id = $1)
-         order by created_at asc`,
+        `select m.*,
+                coalesce(sender.username, sender.nickname, m.sender_name) as sender_name,
+                coalesce(receiver.username, receiver.nickname, m.receiver_name) as receiver_name
+         from messages m
+         left join users sender on sender.id = m.sender_id
+         left join users receiver on receiver.id = m.receiver_id
+         where (m.sender_id = $1 and m.receiver_id = $2) or (m.sender_id = $2 and m.receiver_id = $1)
+         order by m.created_at asc`,
         [userId, peerId]
       );
       return rows.map(toMessage);
@@ -906,16 +985,16 @@ export const repository = {
         `insert into messages (sender_id, sender_name, receiver_id, receiver_name, content)
          values ($1, $2, $3, $4, $5)
          returning *`,
-        [sender.id, sender.nickname, receiver.id, receiver.nickname, input.content]
+        [sender.id, sender.username, receiver.id, receiver.username, input.content]
       );
       return toMessage(rows[0]);
     }
     const message: Message = {
       id: `message-${crypto.randomUUID()}`,
       senderId: sender.id,
-      senderName: sender.nickname,
+      senderName: sender.username,
       receiverId: receiver.id,
-      receiverName: receiver.nickname,
+      receiverName: receiver.username,
       content: input.content,
       createdAt: new Date().toISOString()
     };
@@ -1018,15 +1097,15 @@ export const repository = {
   async getAdminSummary(): Promise<AdminSummary> {
     if (hasDatabase()) {
       const [users, posts, published, pending, comments, messages, notifications, aiReviews, views] = await Promise.all([
-        countTable("users"),
-        countTable("posts"),
+        safeCountTable("users"),
+        safeCountTable("posts"),
         query<{ count: string }>("select count(*)::text as count from posts where status = 'published'").then((rows) => Number(rows[0]?.count ?? 0)),
         query<{ count: string }>("select count(*)::text as count from posts where status = 'pending'").then((rows) => Number(rows[0]?.count ?? 0)),
-        countTable("comments"),
-        countTable("messages"),
-        countTable("notifications"),
-        countTable("ai_review_results"),
-        query<{ total: string }>("select coalesce(sum(view_count), 0)::text as total from posts").then((rows) => Number(rows[0]?.total ?? 0))
+        safeCountTable("comments"),
+        safeCountTable("messages"),
+        safeCountTable("notifications"),
+        safeCountTable("ai_review_results"),
+        query<{ total: string }>("select coalesce(sum(view_count), 0)::text as total from posts").then((rows) => Number(rows[0]?.total ?? 0)).catch(() => 0)
       ]);
       return { totals: { users, posts, published, pending, comments, messages, notifications, aiReviews, views } };
     }

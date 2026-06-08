@@ -6,7 +6,7 @@ import { repository } from "@/lib/repository";
 
 const schema = z.object({
   email: z.string().email().max(160),
-  username: z.string().min(3).max(32).regex(/^[A-Za-z0-9_]+$/),
+  username: z.string().min(1).max(32).regex(/^[\p{L}\p{N}_-]+$/u),
   password: z.string().min(6).max(80)
 });
 

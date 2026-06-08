@@ -17,7 +17,7 @@
     </view>
 
     <view class="label">用户名</view>
-    <input class="input" value="{{username}}" bindinput="onUsernameInput" placeholder="字母、数字、下划线" />
+    <input class="input" value="{{username}}" bindinput="onUsernameInput" placeholder="支持中文、字母、数字、下划线" />
 
     <view class="label">简介</view>
     <textarea class="textarea" value="{{bio}}" bindinput="onBioInput" placeholder="简单介绍一下自己" />

@@ -1,6 +1,10 @@
-const { request, ensureLogin, getStoredUser } = require('../../utils/request')
+const { request, ensureLogin, getStoredUser, getSessionScope } = require('../../utils/request')
 
 const detailCache = {}
+
+function getDetailCacheKey(id) {
+  return `${getSessionScope()}:${id}`
+}
 
 Page({
   data: {
@@ -14,14 +18,17 @@ Page({
     unfavoriteConfirmVisible: false,
     aiRecommending: false,
     aiRecommendation: null,
-    currentUserId: ''
+    currentUserId: '',
+    cacheScope: ''
   },
 
   onLoad(options) {
     const user = getStoredUser()
     if (user && user.id) this.setData({ currentUserId: user.id })
     const id = options.id || ''
-    const cached = detailCache[id]
+    const cacheScope = getSessionScope()
+    this.setData({ cacheScope })
+    const cached = detailCache[getDetailCacheKey(id)]
     if (cached) {
       this.setData({ post: cached.post, comments: cached.comments, loading: false, error: '' })
       return
@@ -31,7 +38,12 @@ Page({
 
   onShow() {
     const user = getStoredUser()
-    this.setData({ currentUserId: user && user.id ? user.id : '' })
+    const cacheScope = getSessionScope()
+    const previousScope = this.data.cacheScope
+    this.setData({ currentUserId: user && user.id ? user.id : '', cacheScope })
+    if (this.data.post && previousScope && previousScope !== cacheScope) {
+      this.loadPost(this.data.post.id)
+    }
   },
 
   loadPost(id) {
@@ -56,7 +68,7 @@ Page({
       .then((data) => {
         const comments = data.comments || []
         this.setData({ comments })
-        if (this.data.post) detailCache[id] = { post: this.data.post, comments }
+        if (this.data.post) detailCache[getDetailCacheKey(id)] = { post: this.data.post, comments }
       })
   },
 
@@ -72,7 +84,7 @@ Page({
       .then((data) => {
         const post = data.post || this.data.post
         this.setData({ post })
-        detailCache[post.id] = { post, comments: this.data.comments }
+        detailCache[getDetailCacheKey(post.id)] = { post, comments: this.data.comments }
         wx.setStorageSync('favorites_dirty', Date.now())
         wx.showToast({ title: '已收藏', icon: 'success' })
       })
@@ -93,7 +105,7 @@ Page({
       .then((data) => {
         const post = data.post || Object.assign({}, this.data.post, { isFavorited: false })
         this.setData({ post, unfavoriteConfirmVisible: false })
-        detailCache[post.id] = { post, comments: this.data.comments }
+        detailCache[getDetailCacheKey(post.id)] = { post, comments: this.data.comments }
         wx.setStorageSync('favorites_dirty', Date.now())
         wx.showToast({ title: '已取消收藏', icon: 'success' })
       })
@@ -159,7 +171,7 @@ Page({
       .then(() => {
         this.setData({ commentContent: '' })
         wx.showToast({ title: '评论成功', icon: 'success' })
-        delete detailCache[this.data.post.id]
+        delete detailCache[getDetailCacheKey(this.data.post.id)]
         return this.loadComments(this.data.post.id)
       })
       .catch((error) => {

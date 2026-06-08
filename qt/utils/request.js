@@ -1,4 +1,19 @@
 const API_BASE_URL = 'http://localhost:3001'
+const SESSION_STORAGE_KEYS = ['favorites_dirty']
+
+function getSessionUserId() {
+  if (!wx.getStorageSync('token')) return ''
+  const user = wx.getStorageSync('user')
+  return user && user.id ? user.id : ''
+}
+
+function getSessionScope() {
+  return getSessionUserId() || 'guest'
+}
+
+function clearSessionStorage() {
+  SESSION_STORAGE_KEYS.forEach((key) => wx.removeStorageSync(key))
+}
 
 function request(options) {
   const token = wx.getStorageSync('token')
@@ -19,6 +34,7 @@ function request(options) {
           return
         }
         if (res.statusCode === 401) logout()
+        if (res.statusCode >= 500) console.error('[Vitex API 500]', options.method || 'GET', options.url, body)
         reject(new Error(body.message || '请求失败'))
       },
       fail(error) {
@@ -49,6 +65,7 @@ function uploadImage(filePath) {
           return
         }
         if (res.statusCode === 401) logout()
+        if (res.statusCode >= 500) console.error('[Vitex Upload 500]', '/api/uploads', body)
         reject(new Error(body.message || '图片上传失败'))
       },
       fail(error) {
@@ -59,6 +76,7 @@ function uploadImage(filePath) {
 }
 
 function saveSession(data) {
+  clearSessionStorage()
   wx.setStorageSync('token', data.token)
   wx.setStorageSync('user', data.user)
   return data.user
@@ -97,6 +115,7 @@ function goLogin() {
 }
 
 function logout() {
+  clearSessionStorage()
   wx.removeStorageSync('token')
   wx.removeStorageSync('user')
 }
@@ -131,6 +150,7 @@ function requirePageLogin(page) {
 }
 
 function getStoredUser() {
+  if (!wx.getStorageSync('token')) return null
   return wx.getStorageSync('user') || null
 }
 
@@ -142,6 +162,9 @@ module.exports = {
   loginByEmail,
   registerByEmail,
   logout,
+  getSessionUserId,
+  getSessionScope,
+  clearSessionStorage,
   requireToken,
   ensureLogin,
   requirePageLogin,
