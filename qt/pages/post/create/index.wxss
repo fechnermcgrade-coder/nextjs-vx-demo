@@ -10,6 +10,12 @@
 .input, .textarea { width: 100%; margin-top: 12rpx; padding: 0 22rpx; border-radius: 24rpx; box-sizing: border-box; background: #f8f3ef; color: #1f2933; font-size: 28rpx; }
 .input { height: 86rpx; line-height: 86rpx; }
 .textarea { min-height: 420rpx; padding: 22rpx; line-height: 1.7; }
+.category-picker { display: flex; align-items: center; justify-content: space-between; min-height: 92rpx; margin-top: 12rpx; padding: 18rpx 22rpx; border-radius: 24rpx; background: #eef4f3; box-sizing: border-box; }
+.category-picker.disabled { opacity: 0.65; }
+.category-main { min-width: 0; }
+.category-name { color: #1f2933; font-size: 28rpx; font-weight: 900; }
+.category-hint { margin-top: 6rpx; color: #789195; font-size: 23rpx; }
+.category-arrow { flex: 0 0 auto; color: #2f5d62; font-size: 44rpx; font-weight: 900; line-height: 1; }
 .cover-picker { position: relative; display: flex; align-items: center; justify-content: center; height: 360rpx; margin-top: 12rpx; overflow: hidden; border-radius: 28rpx; background: #eef4f3; color: #2f5d62; font-size: 28rpx; font-weight: 900; }
 .cover-image { width: 100%; height: 100%; }
 .cover-empty { padding: 24rpx; }

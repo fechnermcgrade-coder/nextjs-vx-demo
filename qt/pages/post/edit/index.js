@@ -7,7 +7,12 @@ Page({
     title: '',
     content: '',
     coverUrl: '',
+    categoryId: '',
+    categoryIndex: 0,
+    categories: [],
+    categoryNames: [],
     loading: true,
+    loadingCategories: false,
     saving: false,
     submitting: false,
     uploadingCover: false,
@@ -29,6 +34,7 @@ Page({
       return
     }
     this.setData({ id: options.id })
+    this.loadCategories()
     this.loadPost(options.id)
   },
 
@@ -49,8 +55,10 @@ Page({
           title: post.title || '',
           content: post.content || '',
           coverUrl: post.coverUrl || '',
+          categoryId: post.categoryId || '',
           loading: false
         })
+        if (post.categoryId) this.loadCategories(post.categoryId)
       })
       .catch((error) => {
         this.setData({ loading: false })
@@ -64,6 +72,36 @@ Page({
 
   onContentInput(event) {
     this.setData({ content: event.detail.value })
+  },
+
+  loadCategories(selectedId) {
+    this.setData({ loadingCategories: true })
+    request({ url: '/api/categories' })
+      .then((data) => {
+        const categories = data.categories || []
+        const categoryNames = categories.map((category) => category.name)
+        const targetId = selectedId || this.data.categoryId || categories[0]?.id || ''
+        const foundIndex = categories.findIndex((category) => category.id === targetId)
+        const categoryIndex = foundIndex >= 0 ? foundIndex : 0
+        const selected = categories[categoryIndex]
+        this.setData({
+          categories,
+          categoryNames,
+          categoryIndex,
+          categoryId: selected?.id || ''
+        })
+      })
+      .catch((error) => wx.showToast({ title: error.message || '分类加载失败', icon: 'none' }))
+      .finally(() => this.setData({ loadingCategories: false }))
+  },
+
+  onCategoryChange(event) {
+    const categoryIndex = Number(event.detail.value)
+    const selected = this.data.categories[categoryIndex]
+    this.setData({
+      categoryIndex,
+      categoryId: selected?.id || ''
+    })
   },
 
   chooseCover() {
@@ -102,7 +140,17 @@ Page({
       wx.showToast({ title: '标题和正文都要填写', icon: 'none' })
       return null
     }
-    return { title, content, coverUrl: this.data.coverUrl }
+    if (this.data.loadingCategories) {
+      wx.showToast({ title: '分类加载中，请稍候', icon: 'none' })
+      return null
+    }
+    if (this.data.categories.length && !this.data.categoryId) {
+      wx.showToast({ title: '请选择文章分类', icon: 'none' })
+      return null
+    }
+    const payload = { title, content, coverUrl: this.data.coverUrl }
+    if (this.data.categoryId) payload.categoryId = this.data.categoryId
+    return payload
   },
 
   showConfirm(type, title, text, danger) {

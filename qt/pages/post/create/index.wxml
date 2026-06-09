@@ -24,13 +24,24 @@
     <view class="label">标题</view>
     <input class="input" value="{{title}}" maxlength="80" placeholder="写一个清晰的标题" bindinput="onTitleInput" />
 
+    <view class="label">文章分类</view>
+    <picker mode="selector" range="{{categoryNames}}" value="{{categoryIndex}}" bindchange="onCategoryChange" disabled="{{loadingCategories || !categoryNames.length}}">
+      <view class="category-picker {{!categoryNames.length ? 'disabled' : ''}}">
+        <view class="category-main">
+          <view class="category-name">{{categoryNames.length ? categoryNames[categoryIndex] : (loadingCategories ? '分类加载中' : '暂无分类')}}</view>
+          <view class="category-hint">发布后会按此分类展示</view>
+        </view>
+        <view class="category-arrow">›</view>
+      </view>
+    </picker>
+
     <view class="label">正文</view>
     <textarea class="textarea" value="{{content}}" maxlength="10000" placeholder="分享你的内容、想法或问题" bindinput="onContentInput" />
 
     <view class="actions">
-      <button class="action-btn ai" loading="{{generating}}" disabled="{{generating || saving || submitting || loading || uploadingCover}}" bindtap="aiWrite">AI 生文</button>
-      <button class="action-btn draft" loading="{{saving}}" disabled="{{generating || saving || submitting || loading || uploadingCover}}" bindtap="saveDraft">保存草稿</button>
-      <button class="action-btn submit" loading="{{submitting}}" disabled="{{generating || saving || submitting || loading || uploadingCover}}" bindtap="submit">提交审核</button>
+      <button class="action-btn ai" loading="{{generating}}" disabled="{{generating || saving || submitting || loading || uploadingCover || loadingCategories}}" bindtap="aiWrite">AI 生文</button>
+      <button class="action-btn draft" loading="{{saving}}" disabled="{{generating || saving || submitting || loading || uploadingCover || loadingCategories}}" bindtap="saveDraft">保存草稿</button>
+      <button class="action-btn submit" loading="{{submitting}}" disabled="{{generating || saving || submitting || loading || uploadingCover || loadingCategories}}" bindtap="submit">提交审核</button>
     </view>
   </view>
 
